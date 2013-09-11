@@ -110,6 +110,12 @@ exports.Base = class Base
     else
       new Return me
 
+  # Sets the static type annotation on this node to the given type expression
+  # This lets us annotate variables and expressions as having an optional static type
+  typeAnnotate: (typeExp) ->
+    @typeAnnotation = typeExp
+    this
+
   # Does this node, or any of its children, contain a node of a certain kind?
   # Recursively traverses down the *children* nodes and returns the first one
   # that verifies `pred`. Otherwise return undefined. `contains` does not cross
@@ -345,8 +351,22 @@ exports.Block = class Block extends Base
       declars = o.scope.hasDeclarations()
       assigns = scope.hasAssignments
       if declars or assigns
-        fragments.push @makeCode '\n' if i
-        fragments.push @makeCode "#{@tab}var "
+        noTypeVars = []
+        if declars
+          for name in scope.declaredVariables()
+            t = scope.typeAnnotation(name)
+            tn = t?.value
+            if tn?
+              fragments.push @makeCode '\n' if i
+              fragments.push @makeCode """
+                  #{@tab}/** @type {#{tn}} */
+                  #{@tab}var #{name};\n
+                """
+            else
+              noTypeVars.push name
+        if noTypeVars.length > 0 or assigns
+          fragments.push @makeCode '\n' if i
+          fragments.push @makeCode "#{@tab}var "
         if declars
           fragments.push @makeCode scope.declaredVariables().join(', ')
         if assigns
@@ -1145,6 +1165,10 @@ exports.Assign = class Assign extends Base
           o.scope.add name, 'var'
         else
           o.scope.find name
+        ta = @variable.typeAnnotation
+        if ta
+          o.scope.typeAnnotate(name, ta)
+
     if @value instanceof Code and match = METHOD_DEF.exec name
       @value.klass = match[1] if match[1]
       @value.name  = match[2] ? match[3] ? match[4] ? match[5]

@@ -233,8 +233,10 @@ grammar =
   ]
 
   # Variables and properties that can be assigned to.
+  # TODO - TYPE_ANNOTATE should really call: (new Value $1).typeAnnotate($2)
   SimpleAssignable: [
     o 'Identifier',                             -> new Value $1
+    o 'Identifier TYPE_ANNOTATE Identifier',    -> (new Value $1).typeAnnotate($3)
     o 'Value Accessor',                         -> $1.add $2
     o 'Invocation Accessor',                    -> new Value $1, [].concat $2
     o 'ThisProperty'
@@ -585,6 +587,7 @@ operators = [
   ['left',      'MATH']
   ['left',      '+', '-']
   ['left',      'SHIFT']
+  ['left',      'TYPE_ANNOTATE']
   ['left',      'RELATION']
   ['left',      'COMPARE']
   ['left',      'LOGIC']

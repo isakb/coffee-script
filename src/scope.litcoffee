@@ -23,12 +23,22 @@ it belongs to.
       constructor: (@parent, @expressions, @method) ->
         @variables = [{name: 'arguments', type: 'arguments'}]
         @positions = {}
+        @typeAnnotations = {}
         Scope.root = this unless @parent
+
+Get a normalized value.
+
+      normalize: (value) ->
+        if typeof value is 'string'
+          kind: value
+        else
+          value
 
 Adds a new variable or overrides an existing one.
 
       add: (name, type, immediate) ->
         return @parent.add name, type, immediate if @shared and not immediate
+        type = @normalize(type)
         if Object::hasOwnProperty.call @positions, name
           @variables[@positions[name]].type = type
         else
@@ -58,6 +68,19 @@ scope. No `var` required for internal references.
       parameter: (name) ->
         return if @shared and @parent.check name, yes
         @add name, 'param'
+
+
+Register the given type annotation for the given name.
+
+      typeAnnotate: (name, typeAnn) ->
+        if typeAnn
+          @typeAnnotations[name] = typeAnn
+
+Get the registered type annotation for the given name.
+
+      typeAnnotation: (name) ->
+        @typeAnnotations[name]
+
 
 Just check to see if a variable has already been declared, without reserving,
 walks up to the root scope.
@@ -105,7 +128,7 @@ Return the list of variables first declared in this scope.
       declaredVariables: ->
         realVars = []
         tempVars = []
-        for v in @variables when v.type is 'var'
+        for v in @variables when v.type.kind is 'var'
           (if v.name.charAt(0) is '_' then tempVars else realVars).push v.name
         realVars.sort().concat tempVars.sort()
 
